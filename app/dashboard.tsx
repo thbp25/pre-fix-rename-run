@@ -7,10 +7,11 @@ import {
   FlatList,
   Alert,
   Modal,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Plus, Menu, Sun, Moon } from 'lucide-react-native';
+import { Plus, Menu, Sun, Moon, Clock, FolderPlus } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Animatable from 'react-native-animatable';
 
@@ -35,6 +36,8 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
+  const [showFabOptions, setShowFabOptions] = useState(false);
+  const fabAnimation = new Animated.Value(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -81,17 +84,26 @@ export default function Dashboard() {
     setShowMenu(false);
   };
 
-  const showCreateOptions = () => {
-    Alert.alert(
-      'Create New',
-      'Choose an option',
-      [
-        { text: 'New Project', onPress: () => router.push('/new-project') },
-        { text: 'Quick Start', onPress: () => router.push('/quick-start') },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-      { cancelable: true }
-    );
+  const toggleFabOptions = () => {
+    if (showFabOptions) {
+      Animated.timing(fabAnimation, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => setShowFabOptions(false));
+    } else {
+      setShowFabOptions(true);
+      Animated.timing(fabAnimation, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  const handleFabOptionPress = (route: string) => {
+    toggleFabOptions();
+    setTimeout(() => router.push(route), 100);
   };
 
   const renderProject = ({ item }: { item: Project }) => (
@@ -148,7 +160,47 @@ export default function Dashboard() {
         <Text style={styles.adText}>Google AdSense Placeholder</Text>
       </View>
 
-      <TouchableOpacity style={styles.fab} onPress={showCreateOptions}>
+      {showFabOptions && (
+        <TouchableOpacity
+          style={styles.fabOverlay}
+          activeOpacity={1}
+          onPress={toggleFabOptions}
+        >
+          <Animated.View
+            style={[
+              styles.fabOptionsContainer,
+              {
+                opacity: fabAnimation,
+                transform: [
+                  {
+                    translateY: fabAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.fabOption, currentStyles.fabOption]}
+              onPress={() => handleFabOptionPress('/quick-start')}
+            >
+              <Clock size={20} color={isDarkMode ? "#ffffff" : "#000000"} />
+              <Text style={[styles.fabOptionText, currentStyles.fabOptionText]}>Quick Start</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.fabOption, currentStyles.fabOption]}
+              onPress={() => handleFabOptionPress('/new-project')}
+            >
+              <FolderPlus size={20} color={isDarkMode ? "#ffffff" : "#000000"} />
+              <Text style={[styles.fabOptionText, currentStyles.fabOptionText]}>New Project</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity style={styles.fab} onPress={toggleFabOptions}>
         <Plus size={28} color="#ffffff" />
       </TouchableOpacity>
 
@@ -281,6 +333,37 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 8,
   },
+  fabOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+  },
+  fabOptionsContainer: {
+    position: 'absolute',
+    bottom: 170,
+    right: 20,
+    gap: 12,
+  },
+  fabOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  fabOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -328,6 +411,12 @@ const lightStyles = StyleSheet.create({
   menuItemText: {
     color: '#000000',
   },
+  fabOption: {
+    backgroundColor: '#ffffff',
+  },
+  fabOptionText: {
+    color: '#000000',
+  },
 });
 
 const darkStyles = StyleSheet.create({
@@ -350,6 +439,12 @@ const darkStyles = StyleSheet.create({
     backgroundColor: '#2a2a2a',
   },
   menuItemText: {
+    color: '#ffffff',
+  },
+  fabOption: {
+    backgroundColor: '#2a2a2a',
+  },
+  fabOptionText: {
     color: '#ffffff',
   },
 });

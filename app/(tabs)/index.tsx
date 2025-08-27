@@ -35,7 +35,7 @@ export default function WelcomeScreen() {
           style={styles.logoContainer}
         >
           <View style={styles.logo}>
-            <Text style={styles.logoText}>Orate.io</Text>
+            <Text style={styles.logoText}>Orator.io</Text>
           </View>
         </Animatable.View>
         <Animatable.Text 
