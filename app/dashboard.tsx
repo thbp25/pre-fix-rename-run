@@ -37,7 +37,7 @@ export default function Dashboard() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [showFabOptions, setShowFabOptions] = useState(false);
-  const fabAnimation = new Animated.Value(0);
+  const fabAnimation = useRef(new Animated.Value(0)).current;
   const router = useRouter();
 
   useEffect(() => {

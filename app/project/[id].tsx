@@ -168,26 +168,6 @@ export default function ProjectDetail() {
   };
 
   const showRenameDialog = (run: Run) => {
-    // Create a custom modal for renaming since Alert.prompt doesn't work reliably
-    const [tempName, setTempName] = useState(run.name);
-    
-    Alert.alert(
-      'Rename Run',
-      '',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Save',
-          onPress: () => {
-            // We'll handle this with a proper input modal
-            showRenameModal(run);
-          },
-        },
-      ]
-    );
-  };
-
-  const showRenameModal = (run: Run) => {
     Alert.prompt(
       'Rename Run',
       'Enter new name:',
