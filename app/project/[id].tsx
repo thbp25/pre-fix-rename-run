@@ -10,7 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Play, Clock, CreditCard as Edit, Trash2, Upload } from 'lucide-react-native';
+import { ArrowLeft, Play, Clock, CreditCard as Edit, Trash2, Upload, Timer } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uploadAndParseDocument } from '../../utils/documentParser';
 import { useFocusEffect } from '@react-navigation/native';
@@ -37,9 +37,12 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<Project | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDurationModal, setShowDurationModal] = useState(false);
   const [editWordCount, setEditWordCount] = useState('');
   const [editScriptName, setEditScriptName] = useState('');
   const [hasScript, setHasScript] = useState(false);
+  const [editMinutes, setEditMinutes] = useState('');
+  const [editSeconds, setEditSeconds] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -75,6 +78,8 @@ export default function ProjectDetail() {
           setEditWordCount(foundProject.wordCount.toString());
           setEditScriptName(foundProject.scriptName || '');
           setHasScript(!!foundProject.scriptName);
+          setEditMinutes(foundProject.duration.minutes.toString());
+          setEditSeconds(foundProject.duration.seconds.toString());
         }
       }
     } catch (error) {
@@ -163,6 +168,26 @@ export default function ProjectDetail() {
   };
 
   const showRenameDialog = (run: Run) => {
+    // Create a custom modal for renaming since Alert.prompt doesn't work reliably
+    const [tempName, setTempName] = useState(run.name);
+    
+    Alert.alert(
+      'Rename Run',
+      '',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Save',
+          onPress: () => {
+            // We'll handle this with a proper input modal
+            showRenameModal(run);
+          },
+        },
+      ]
+    );
+  };
+
+  const showRenameModal = (run: Run) => {
     Alert.prompt(
       'Rename Run',
       'Enter new name:',
@@ -266,6 +291,53 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleSecondsChange = (value: string) => {
+    const numValue = parseInt(value) || 0;
+    if (numValue > 59) {
+      const additionalMinutes = Math.floor(numValue / 60);
+      const remainingSeconds = numValue % 60;
+      const currentMinutes = parseInt(editMinutes) || 0;
+      
+      setEditMinutes((currentMinutes + additionalMinutes).toString());
+      setEditSeconds(remainingSeconds.toString());
+    } else {
+      setEditSeconds(value);
+    }
+  };
+
+  const saveDurationChanges = async () => {
+    if (!project) return;
+
+    const minutes = parseInt(editMinutes) || 0;
+    const seconds = parseInt(editSeconds) || 0;
+
+    if (minutes === 0 && seconds === 0) {
+      Alert.alert('Error', 'Duration cannot be zero');
+      return;
+    }
+
+    try {
+      const storedProjects = await AsyncStorage.getItem('projects');
+      if (storedProjects) {
+        const projects = JSON.parse(storedProjects);
+        const projectIndex = projects.findIndex((p: Project) => p.id === project.id);
+        
+        if (projectIndex !== -1) {
+          projects[projectIndex] = {
+            ...project,
+            duration: { minutes, seconds },
+          };
+          
+          await AsyncStorage.setItem('projects', JSON.stringify(projects));
+          setProject(projects[projectIndex]);
+          setShowDurationModal(false);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save duration changes');
+    }
+  };
+
   const renderRun = ({ item }: { item: Run }) => (
     <TouchableOpacity 
       style={[styles.runCard, isDarkMode ? styles.runCardDark : styles.runCardLight]}
@@ -283,9 +355,6 @@ export default function ProjectDetail() {
       <View style={styles.runDetails}>
         <Text style={[styles.runDetail, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>
           Duration: {Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, '0')}
-        </Text>
-        <Text style={[styles.runDetail, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>
-          Type: {item.type}
         </Text>
       </View>
     </TouchableOpacity>
@@ -317,6 +386,9 @@ export default function ProjectDetail() {
             <Text style={[styles.infoText, currentStyles.infoText]}>
               {project.duration.minutes}:{project.duration.seconds.toString().padStart(2, '0')}
             </Text>
+            <TouchableOpacity onPress={() => setShowDurationModal(true)} style={styles.editButton}>
+              <Edit size={16} color="#3282b8" />
+            </TouchableOpacity>
           </View>
           <View style={[styles.infoCard, currentStyles.infoCard]}>
             <Text style={[styles.infoLabel, isDarkMode ? styles.textSecondaryDark : styles.textSecondaryLight]}>Words</Text>
@@ -431,6 +503,62 @@ export default function ProjectDetail() {
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
                 onPress={saveChanges}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showDurationModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDurationModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.editModal, currentStyles.editModal]}>
+            <Text style={[styles.modalTitle, currentStyles.modalTitle]}>Edit Duration</Text>
+            
+            <View style={styles.modalSection}>
+              <Text style={[styles.modalLabel, currentStyles.modalLabel]}>Duration</Text>
+              <View style={styles.durationContainer}>
+                <View style={[styles.durationInput, currentStyles.modalInput]}>
+                  <TextInput
+                    style={[styles.timeInput, currentStyles.timeInput]}
+                    value={editMinutes}
+                    onChangeText={setEditMinutes}
+                    placeholder="0"
+                    placeholderTextColor={isDarkMode ? "#666" : "#999"}
+                    keyboardType="numeric"
+                  />
+                  <Text style={[styles.timeLabel, currentStyles.timeLabel]}>min</Text>
+                </View>
+                <View style={[styles.durationInput, currentStyles.modalInput]}>
+                  <TextInput
+                    style={[styles.timeInput, currentStyles.timeInput]}
+                    value={editSeconds}
+                    onChangeText={handleSecondsChange}
+                    placeholder="0"
+                    placeholderTextColor={isDarkMode ? "#666" : "#999"}
+                    keyboardType="numeric"
+                  />
+                  <Text style={[styles.timeLabel, currentStyles.timeLabel]}>s</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowDurationModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={saveDurationChanges}
               >
                 <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
@@ -677,6 +805,27 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  durationContainer: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  durationInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+  },
+  timeInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 16,
+  },
+  timeLabel: {
+    fontSize: 16,
+    marginLeft: 8,
+  },
 });
 
 const lightStyles = StyleSheet.create({
@@ -730,6 +879,12 @@ const lightStyles = StyleSheet.create({
   helperText: {
     color: '#666',
   },
+  timeInput: {
+    color: '#000000',
+  },
+  timeLabel: {
+    color: '#666',
+  },
 });
 
 const darkStyles = StyleSheet.create({
@@ -781,6 +936,12 @@ const darkStyles = StyleSheet.create({
     color: '#3282b8',
   },
   helperText: {
+    color: '#cccccc',
+  },
+  timeInput: {
+    color: '#ffffff',
+  },
+  timeLabel: {
     color: '#cccccc',
   },
 });

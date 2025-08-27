@@ -145,7 +145,7 @@ export default function Timer() {
 
   const handleLap = () => {
     const lapTime = formatTime(viewMode === 'countdown' ? totalDuration - currentTime : currentTime);
-    setLaps(prev => [...prev, { number: prev.length + 1, time: lapTime }]);
+    setLaps(prev => [{ number: prev.length + 1, time: lapTime }, ...prev]);
   };
 
   const toggleView = () => {
@@ -270,7 +270,7 @@ export default function Timer() {
               style={styles.lapsScroll}
               showsVerticalScrollIndicator={true}
             >
-              {laps.map((lap) => (
+              {laps.slice(0, 5).map((lap) => (
                 <View key={lap.number} style={styles.lapItem}>
                   <Text style={styles.lapNumber}>Lap {lap.number}</Text>
                   <Text style={styles.lapTime}>{lap.time}</Text>
